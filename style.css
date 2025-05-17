@@ -143,7 +143,14 @@ body.dark-mode {
   --route-normal-text: var(--route-normal-text-dark);
   --route-normal-bg: var(--route-normal-bg-dark);
 }
-
+.remark-symbol { /* This existing class is used for '*' and now '†' */
+  font-weight: bold;
+  margin-left: 3px; /* Adjusted margin slightly */
+  color: var(--primary-color);
+  vertical-align: super; /* Makes it look a bit like a superscript */
+  font-size: 0.8em;   /* Makes it a bit smaller */
+  line-height: 1;     /* Prevents it from increasing line height */
+}
 * {
   box-sizing: border-box;
   margin: 0;
