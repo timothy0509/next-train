@@ -218,7 +218,11 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  function displayResults(successfulLineData, requestedStationName) {
+// In app.js
+
+// ... (all other functions like fetchEtaForLine, getStationCodeByName, etc., remain the same) ...
+
+function displayResults(successfulLineData, requestedStationName) {
     console.log("[Display] Starting displayResults. Successful Line Data count:", successfulLineData.length, "Station:", requestedStationName);
     etaResultsArea.innerHTML = ""; // Clear previous results
     let earliestSysTime = null;
@@ -237,7 +241,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
       }
 
-      const lineSchedulePayload = lineApiData.data; // e.g., {"KTL-YAT": {"UP": [...], "DOWN": [...]}}
+      const lineSchedulePayload = lineApiData.data;
       const lineSpecificKey = `${lineCode}-${staCode}`;
       let directionsToParse = [];
 
@@ -245,11 +249,10 @@ document.addEventListener("DOMContentLoaded", () => {
         const scheduleUnderKey = lineSchedulePayload[lineSpecificKey];
         if (scheduleUnderKey.UP) directionsToParse.push({ key: "UP", trains: scheduleUnderKey.UP });
         if (scheduleUnderKey.DOWN) directionsToParse.push({ key: "DOWN", trains: scheduleUnderKey.DOWN });
-        // If neither UP/DOWN, but the key itself is an array (e.g. some single-direction services)
         else if (Array.isArray(scheduleUnderKey)) {
-            directionsToParse.push({ key: lineCode, trains: scheduleUnderKey }); // Use lineCode as key
+            directionsToParse.push({ key: lineCode, trains: scheduleUnderKey });
         }
-      } else { // Fallback to generic UP/DOWN keys directly under lineSchedulePayload
+      } else {
         if (lineSchedulePayload.UP) directionsToParse.push({ key: "UP", trains: lineSchedulePayload.UP });
         if (lineSchedulePayload.DOWN) directionsToParse.push({ key: "DOWN", trains: lineSchedulePayload.DOWN });
       }
@@ -258,10 +261,10 @@ document.addEventListener("DOMContentLoaded", () => {
         if (dir.trains && Array.isArray(dir.trains)) {
           dir.trains.forEach(train => {
             allIndividualTrains.push({
-              ...train, // Spread all properties from the train object
+              ...train,
               lineCode: lineCode,
-              originalDirectionKey: dir.key, // "UP", "DOWN", or lineCode
-              apiFullData: lineApiData // Keep reference to full API data for curr_time
+              originalDirectionKey: dir.key,
+              apiFullData: lineApiData
             });
           });
         }
@@ -274,15 +277,20 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    // Group trains by line, platform, and destination
     const groupedTrains = {};
     allIndividualTrains.forEach(train => {
-      const groupKey = `${train.lineCode}-${train.plat}-${train.dest}`;
+      let routeSuffix = '';
+      if (train.lineCode === 'EAL' && train.route === 'RAC') {
+        routeSuffix = '-RAC';
+      }
+      const groupKey = `${train.lineCode}-${train.plat}-${train.dest}${routeSuffix}`;
+
       if (!groupedTrains[groupKey]) {
         groupedTrains[groupKey] = {
           lineCode: train.lineCode,
           platform: train.plat,
           destinationCode: train.dest,
+          ealRoute: (train.lineCode === 'EAL' && train.route === 'RAC') ? 'RAC' : '', // Store EAL route
           originalDirectionKey: train.originalDirectionKey,
           trains: []
         };
@@ -290,77 +298,93 @@ document.addEventListener("DOMContentLoaded", () => {
       groupedTrains[groupKey].trains.push(train);
     });
 
-    // Prepare data for rendering and sort individual train groups
     const renderableRowData = Object.values(groupedTrains).map(group => {
-      // Sort trains within each group by sequence or ttnt
       group.trains.sort((a, b) => (parseInt(a.seq) || Infinity) - (parseInt(b.seq) || Infinity) || (parseInt(a.ttnt) || Infinity) - (parseInt(b.ttnt) || Infinity));
 
-      const etas = [];
-      const scheduledTimes = [];
-      const remarks = [];
-      const firstTrain = group.trains[0] || {};
+      const etasWithSymbols = [];
+      const scheduledTimesForRow = []; // Only one scheduled time for the row (from the first train)
+      const uniqueIndividualRemarkCodes = new Set();
+      const firstTrainForOverallRemark = group.trains[0] || {};
 
       for (let i = 0; i < 4; i++) {
         const train = group.trains[i];
+        let etaDisplay = "–";
+        let individualRemarkSymbolHtml = "";
+
         if (train) {
+          let currentTrainRemarkCodes = [];
+          if (train.lineCode === 'EAL' && train.route === 'RAC') currentTrainRemarkCodes.push("RAC");
+          if (train.isdelay === 'Y') currentTrainRemarkCodes.push("DLY");
+          if (train.lineCode === 'EAL' && train.timetype === 'A') currentTrainRemarkCodes.push("ARR");
+          if (train.lineCode === 'EAL' && train.timetype === 'D') currentTrainRemarkCodes.push("DEP");
+          
+          currentTrainRemarkCodes.forEach(code => uniqueIndividualRemarkCodes.add(code));
+
+          if (currentTrainRemarkCodes.length > 0) {
+            individualRemarkSymbolHtml = ' <span class="remark-symbol">†</span>'; // Dagger symbol
+          }
+
           if (train.ttnt !== undefined && train.ttnt !== "") {
             const ttntVal = parseInt(train.ttnt);
             if (ttntVal <= 0 && train.time && train.apiFullData && train.apiFullData.curr_time) {
               const now = new Date(train.apiFullData.curr_time.replace(/-/g, "/"));
               const trainTime = new Date(train.time.replace(/-/g, "/"));
-              etas.push(trainTime <= now ? `<strong style="color: var(--primary-color);">Dep</strong>` : `<strong style="color: var(--primary-color);">Arr</strong>`);
+              etaDisplay = (trainTime <= now ? `<strong style="color: var(--primary-color);">Dep</strong>` : `<strong style="color: var(--primary-color);">Arr</strong>`);
             } else {
-              etas.push(train.ttnt);
+              etaDisplay = train.ttnt;
             }
-          } else {
-            etas.push("–");
           }
-          let schedTimeText = formatTime(train.time);
-          if (train.valid === "N" || (train.isdelay === "Y" && (train.ttnt === undefined || train.ttnt === ""))) {
-            schedTimeText += ' <span class="remark-symbol">*</span>';
+          etasWithSymbols.push(etaDisplay + individualRemarkSymbolHtml);
+
+          if (i === 0) { // For the first train, prepare its scheduled time for the row
+            let schedTimeText = formatTime(train.time);
+            if (train.valid === "N" || (train.isdelay === "Y" && (train.ttnt === undefined || train.ttnt === ""))) {
+              schedTimeText += ' <span class="remark-symbol">*</span>'; // Asterisk for scheduled
+            }
+            scheduledTimesForRow.push(schedTimeText);
           }
-          scheduledTimes.push(schedTimeText);
-          remarks.push(buildTrainRemarks(train, group.lineCode));
         } else {
-          etas.push("–");
-          scheduledTimes.push("–");
-          remarks.push("–");
+          etasWithSymbols.push("–");
+          if (i === 0) scheduledTimesForRow.push("–");
         }
       }
+
+      let mainRemarkString = "";
+      if (uniqueIndividualRemarkCodes.has("RAC")) mainRemarkString += (mainRemarkString ? ", " : "") + "Via Racecourse";
+      if (uniqueIndividualRemarkCodes.has("DLY") && !mainRemarkString.includes("Delayed")) mainRemarkString += (mainRemarkString ? ", " : "") + "Delayed"; // Avoid double "Delayed"
+      if (uniqueIndividualRemarkCodes.has("ARR") && !mainRemarkString.includes("Racecourse")) mainRemarkString += (mainRemarkString ? ", " : "") + "Arrival";
+      if (uniqueIndividualRemarkCodes.has("DEP") && !mainRemarkString.includes("Racecourse")) mainRemarkString += (mainRemarkString ? ", " : "") + "Departure";
+
 
       return {
         lineCode: group.lineCode,
         platform: group.platform || "N/A",
         destinationName: STATION_CODES[group.destinationCode] || group.destinationCode,
-        etas: etas,
-        // For simplicity, show scheduled time & remarks of the 1st train in the group
-        firstScheduledTime: scheduledTimes[0],
-        firstRemark: remarks[0],
+        etas: etasWithSymbols,
+        firstScheduledTime: scheduledTimesForRow[0] || "–",
+        mainRemark: mainRemarkString || "–",
         originalDirectionKey: group.originalDirectionKey,
-        firstEtaSortVal: firstTrain.ttnt !== undefined ? parseInt(firstTrain.ttnt) : Infinity,
+        firstEtaSortVal: firstTrainForOverallRemark.ttnt !== undefined ? parseInt(firstTrainForOverallRemark.ttnt) : Infinity,
       };
     });
 
-    // Sort renderableRowData: Line -> Direction (UP < DOWN) -> First ETA
     renderableRowData.sort((a, b) => {
       const lineNameA = MTR_LINES[a.lineCode] || a.lineCode;
       const lineNameB = MTR_LINES[b.lineCode] || b.lineCode;
       if (lineNameA.localeCompare(lineNameB) !== 0) {
         return lineNameA.localeCompare(lineNameB);
       }
-      // Custom sort for direction: UP, then DOWN, then others alphabetically
       const dirOrder = { "UP": 1, "DOWN": 2 };
       const dirA = dirOrder[a.originalDirectionKey] || 3;
       const dirB = dirOrder[b.originalDirectionKey] || 3;
       if (dirA !== dirB) {
         return dirA - dirB;
       }
-      if (dirA === 3 && a.originalDirectionKey.localeCompare(b.originalDirectionKey) !== 0) { // Sort other keys alphabetically
+      if (dirA === 3 && a.originalDirectionKey.localeCompare(b.originalDirectionKey) !== 0) {
           return a.originalDirectionKey.localeCompare(b.originalDirectionKey);
       }
       return a.firstEtaSortVal - b.firstEtaSortVal;
     });
-
 
     if (renderableRowData.length === 0) {
       console.warn("[Display] No renderable rows after grouping and processing.");
@@ -368,10 +392,8 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    // Create single table structure
     const tableContainer = document.createElement("div");
-    tableContainer.className = "eta-table-container"; // This will get the animation
-
+    tableContainer.className = "eta-table-container";
     const table = document.createElement("table");
     table.className = "eta-results";
     table.innerHTML = `
@@ -394,7 +416,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
     renderableRowData.forEach(rowItem => {
       const row = tbody.insertRow();
-
       const cellLine = row.insertCell();
       const lineTag = document.createElement("span");
       lineTag.className = `route-tag ${getRouteTagClass(rowItem.lineCode)}`;
@@ -403,12 +424,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
       row.insertCell().textContent = rowItem.destinationName;
       row.insertCell().textContent = rowItem.platform;
-      row.insertCell().innerHTML = rowItem.etas[0]; // Use innerHTML for Arr/Dep strong tags
+      row.insertCell().innerHTML = rowItem.etas[0];
       row.insertCell().innerHTML = rowItem.etas[1];
       row.insertCell().innerHTML = rowItem.etas[2];
       row.insertCell().innerHTML = rowItem.etas[3];
-      row.insertCell().innerHTML = rowItem.firstScheduledTime; // Use innerHTML for remark symbol
-      row.insertCell().textContent = rowItem.firstRemark;
+      row.insertCell().innerHTML = rowItem.firstScheduledTime;
+      row.insertCell().textContent = rowItem.mainRemark;
     });
 
     tableContainer.appendChild(table);
@@ -422,7 +443,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (statusMessages.classList.contains("status-loading") || statusMessages.classList.contains("status-info")) {
          statusMessages.classList.remove("status-visible");
     }
-  } // End of displayResults
+} // End of displayResults
 
   stationInput.addEventListener("keypress", (event) => { /* ... (same as before) ... */
     if (event.key === "Enter") {
