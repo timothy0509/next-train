@@ -9,6 +9,116 @@ document.addEventListener("DOMContentLoaded", () => {
 
   document.getElementById("current-year").textContent =
     new Date().getFullYear();
+// In app.js
+async function fetchEtaForLine(line, sta) {
+  const apiUrl = `https://rt.data.gov.hk/v1/transport/mtr/getSchedule.php?line=${line}&sta=${sta}&lang=EN`;
+  console.log("Attempting to fetch:", apiUrl); // For debugging
+  try {
+    const response = await fetch(apiUrl);
+    console.log(`Response for ${line}-${sta}:`, response); // Log the raw response
+
+    if (!response.ok) {
+      // Log more details if the response is not OK
+      const errorText = await response.text(); // Try to get error text from API
+      console.error(
+        `API request failed for ${apiUrl} with status: ${response.status}. Response text: ${errorText}`
+      );
+      throw new Error(
+        `API request failed: ${response.status}. Message: ${errorText}`
+      );
+    }
+    const jsonData = await response.json();
+    console.log(`Successfully fetched and parsed JSON for ${line}-${sta}`);
+    return jsonData;
+  } catch (error) {
+    console.error(`Error in fetchEtaForLine for ${line}-${sta} (${apiUrl}):`, error);
+    // Optionally, update the UI to show an error for this specific line/station
+    // For now, just returning null is handled by the calling function.
+    // You could also call showStatusMessage here for individual line failures if desired.
+    return null;
+  }
+}
+
+// Modify the main fetch handler to better report issues
+fetchEtaButton.addEventListener("click", async () => {
+  const stationQuery = stationInput.value.trim();
+  if (!stationQuery) {
+    showStatusMessage("Please enter a station name or code.", "error");
+    return;
+  }
+
+  showStatusMessage("Fetching ETAs...", "loading");
+  etaResultsArea.innerHTML = '<div class="loading-spinner"></div>';
+  dataTimestampElem.textContent = "";
+
+  const stationCode = getStationCodeByName(stationQuery);
+  const linesToQuery = stationCode ? STATION_LINE_MAP[stationCode] : null;
+
+  if (!linesToQuery || linesToQuery.length === 0) {
+    showStatusMessage(
+      `Station "${stationQuery}" not found or no lines associated. Please check the MTR map. Input: "${stationInput.value}", Resolved Code: "${stationCode}"`,
+      "error",
+      7000
+    );
+    etaResultsArea.innerHTML = "";
+    return;
+  }
+
+  console.log(`Querying for station code: ${stationCode}, lines:`, linesToQuery);
+
+  const allPromises = linesToQuery.map((lineInfo) =>
+    fetchEtaForLine(lineInfo.line, lineInfo.sta)
+  );
+
+  try {
+    const results = await Promise.all(allPromises);
+    const successfulResults = [];
+    let apiFetchErrorCount = 0;
+
+    results.forEach((result, index) => {
+      if (result && result.status !== "0") { // Check for API's own status flag too
+        successfulResults.push({
+          lineCode: linesToQuery[index].line,
+          staCode: linesToQuery[index].sta,
+          data: result,
+        });
+      } else {
+        apiFetchErrorCount++;
+        console.warn(`No valid data or API error for ${linesToQuery[index].line}-${linesToQuery[index].sta}. API Response:`, result);
+      }
+    });
+
+    if (successfulResults.length > 0) {
+      displayResults(successfulResults, STATION_CODES[stationCode] || stationQuery);
+      if (apiFetchErrorCount > 0) {
+        showStatusMessage(
+          `Displayed available data. ${apiFetchErrorCount} line(s) failed to load or had no service.`,
+          "info",
+          7000
+        );
+      } else {
+        if (statusMessages.classList.contains("status-loading")) {
+          statusMessages.classList.remove("status-visible");
+        }
+      }
+    } else {
+      showStatusMessage(
+        `Could not fetch any valid ETA data for "${STATION_CODES[stationCode] || stationQuery}". The MTR API might be unavailable, the station has no current services, or the input was invalid.`,
+        "error",
+        10000
+      );
+      etaResultsArea.innerHTML = "";
+    }
+  } catch (error) {
+    // This catch is for errors in Promise.all itself or unhandled promise rejections
+    console.error("Critical error processing ETA requests:", error);
+    showStatusMessage(
+      "An unexpected critical error occurred while fetching data. Check console.",
+      "error"
+    );
+    etaResultsArea.innerHTML = "";
+  }
+});
 
   // --- THEME SWITCHER ---
   function applyTheme(isDark) {
