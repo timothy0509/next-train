@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MTR Next Train ETA</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        /* Additional styles for MTR Line Tags - Add to your style.css or keep here */
+        .route-tag-AEL { background-color: #0077C0; color: var(--route-white-text); } /* Airport Express Blue */
+        .route-tag-TCL { background-color: #F58220; color: var(--route-white-text); } /* Tung Chung Orange */
+        .route-tag-TML { background-color: #A0522D; color: var(--route-white-text); } /* Tuen Ma Brown */
+        .route-tag-TKL { background-color: #7B2F90; color: var(--route-white-text); } /* Tseung Kwan O Purple */
+        .route-tag-EAL { background-color: #5091CD; color: var(--route-white-text); } /* East Rail Light Blue */
+        .route-tag-SIL { background-color: #AAD500; color: var(--route-normal-text); } /* South Island Lime Green */
+        .route-tag-TWL { background-color: var(--route-red-bg); color: var(--route-white-text); } /* Tsuen Wan Red */
+        .route-tag-ISL { background-color: #0052A3; color: var(--route-white-text); } /* Island Line Dark Blue */
+        .route-tag-KTL { background-color: #008A4E; color: var(--route-white-text); } /* Kwun Tong Green */
+        .route-tag-DRL { background-color: #FF69B4; color: var(--route-white-text); } /* Disneyland Pink */
+        .route-tag-DEFAULT { background-color: var(--route-normal-bg); color: var(--route-normal-text); }
+
+        /* Ensure table cells can accommodate content without excessive wrapping */
+        table.eta-results td, table.eta-results th {
+            white-space: normal; /* Allow wrapping */
+            word-break: keep-all; /* Try to keep words together */
+        }
+        table.eta-results td:nth-child(1), /* Line */
+        table.eta-results td:nth-child(3), /* Platform */
+        table.eta-results td:nth-child(4)  /* ETA */
+        {
+            white-space: nowrap; /* Keep these specific columns from wrapping */
+        }
+         .loading-spinner {
+            border: 4px solid var(--outline-color);
+            border-top: 4px solid var(--primary-color);
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header-controls">
+            <h1>MTR Next Train</h1>
+            <div class="theme-switch-wrapper">
+                <label class="theme-switch" for="theme-checkbox">
+                    <input type="checkbox" id="theme-checkbox" />
+                    <span class="slider"></span>
+                </label>
+                <span class="theme-label" id="theme-label-text">Light Mode</span>
+            </div>
+        </div>
+
+        <div class="controls">
+            <div>
+                <label for="station-input">Station Name or Code (e.g., ADM, Mong Kok)</label>
+                <input type="text" id="station-input" placeholder="Admiralty, MOK, Tsim Sha Tsui...">
+            </div>
+            <button id="fetch-eta-button">Get ETAs</button>
+        </div>
+
+        <div id="status-messages"></div>
+
+        <div id="eta-results-area">
+            <!-- ETA tables will be dynamically inserted here -->
+        </div>
+
+        <div id="legend">
+            <p><strong>Legend:</strong></p>
+            <p><span class="remark-symbol">*</span> (after ETA) Indicates a scheduled time, not a live countdown.</p>
+            <p><strong>Data Source:</strong> MTR Corporation Limited. ETAs are subject to change.</p>
+            <p id="data-timestamp" style="font-size: 0.85em; opacity: 0.8;"></p>
+        </div>
+    </div>
+
+    <footer>
+        <p>&copy; <span id="current-year"></span> MTR Next Train Viewer. For reference only.</p>
+    </footer>
+
+    <script src="app.js"></script>
+</body>
+</html>
