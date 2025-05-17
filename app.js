@@ -12,32 +12,64 @@ document.addEventListener("DOMContentLoaded", () => {
 // In app.js
 async function fetchEtaForLine(line, sta) {
   const apiUrl = `https://rt.data.gov.hk/v1/transport/mtr/getSchedule.php?line=${line}&sta=${sta}&lang=EN`;
-  console.log("Attempting to fetch:", apiUrl); // For debugging
+  console.log(`[${line}-${sta}] Initiating fetch to: ${apiUrl}`);
+
   try {
-    const response = await fetch(apiUrl);
-    console.log(`Response for ${line}-${sta}:`, response); // Log the raw response
+    const response = await fetch(apiUrl, {
+      mode: 'cors', // Explicitly set CORS mode, though 'cors' is default
+      headers: {
+        'Accept': 'application/json' // Be explicit about what we accept
+      }
+    });
+
+    console.log(`[${line}-${sta}] Fetch call completed. Status: ${response.status}, OK: ${response.ok}`);
+    console.log(`[${line}-${sta}] Response headers:`, response.headers); // See all headers
+
+    // Try to get the response as text first, regardless of 'ok' status, for debugging
+    let responseText = "";
+    try {
+      responseText = await response.text();
+      console.log(`[${line}-${sta}] Response text received:`, responseText.substring(0, 500) + (responseText.length > 500 ? "..." : "")); // Log first 500 chars
+    } catch (textError) {
+      console.error(`[${line}-${sta}] Error reading response text:`, textError);
+      // If we can't even read the text, it's a significant issue.
+      // We'll throw a new error or let the !response.ok catch it.
+      throw new Error(`Failed to read response text: ${textError.message}`);
+    }
 
     if (!response.ok) {
-      // Log more details if the response is not OK
-      const errorText = await response.text(); // Try to get error text from API
       console.error(
-        `API request failed for ${apiUrl} with status: ${response.status}. Response text: ${errorText}`
+        `[${line}-${sta}] API request was not OK. Status: ${response.status}. Response text: ${responseText}`
       );
       throw new Error(
-        `API request failed: ${response.status}. Message: ${errorText}`
+        `API request failed: ${response.status}. Body: ${responseText}`
       );
     }
-    const jsonData = await response.json();
-    console.log(`Successfully fetched and parsed JSON for ${line}-${sta}`);
-    return jsonData;
-  } catch (error) {
-    console.error(`Error in fetchEtaForLine for ${line}-${sta} (${apiUrl}):`, error);
-    // Optionally, update the UI to show an error for this specific line/station
-    // For now, just returning null is handled by the calling function.
-    // You could also call showStatusMessage here for individual line failures if desired.
-    return null;
+
+    // If response.ok is true, now try to parse the text as JSON
+    try {
+      const jsonData = JSON.parse(responseText);
+      console.log(`[${line}-${sta}] Successfully parsed JSON:`, jsonData);
+      return jsonData;
+    } catch (jsonError) {
+      console.error(`[${line}-${sta}] Failed to parse JSON. Error:`, jsonError);
+      console.error(`[${line}-${sta}] Raw text that failed JSON parsing:`, responseText);
+      throw new Error(`Invalid JSON response from API: ${jsonError.message}. Raw: ${responseText.substring(0,100)}`);
+    }
+
+  } catch (networkOrThrownError) {
+    // This catches:
+    // 1. Network errors from fetch() itself (e.g., DNS resolution failure, server unreachable)
+    // 2. Errors explicitly thrown above (e.g., !response.ok, JSON.parse failure, textError)
+    console.error(`[${line}-${sta}] Critical error in fetchEtaForLine for ${apiUrl}:`, networkOrThrownError);
+    // If the error object has more details, log them
+    if (networkOrThrownError.cause) {
+        console.error(`[${line}-${sta}] Cause of error:`, networkOrThrownError.cause);
+    }
+    return null; // Ensure a value is returned for Promise.all
   }
 }
+
 
 // Modify the main fetch handler to better report issues
 fetchEtaButton.addEventListener("click", async () => {
