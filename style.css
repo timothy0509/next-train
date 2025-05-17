@@ -1,4 +1,4 @@
-/* style.css - MTR Next Train Edition */
+/* style.css - MTR Next Train Edition - With Official Line Colors */
 @import url("https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Google+Sans+Text:wght@400;500;700&family=Google+Sans:wght@400;500;700&family=Google+Sans+Display:wght@400;700&display=swap");
 /*
   NOTE: The above @import for Google Sans, Google Sans Display, and Google Sans Text
@@ -87,7 +87,7 @@
   --animation-duration: 0.25s;
   --animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
 
-  /* Generic Route/Tag Colors (can be used if needed, MTR lines have specific colors below) */
+  /* Generic Route/Tag Colors */
   --route-white-text: #ffffff;
   --route-normal-text-light: var(--on-surface-color-light);
   --route-normal-bg-light: #e8eaed;
@@ -375,7 +375,8 @@ body.dark-mode input:checked + .slider {
     transform: scale(1);
   }
 }
-.eta-table-container h3 {
+/* H3 Title for the single table container (if needed, or remove if no title above table) */
+/* .eta-table-container h3 {
   font-family: var(--font-family-sans);
   margin-top: 0;
   margin-bottom: 20px;
@@ -386,7 +387,8 @@ body.dark-mode input:checked + .slider {
   padding-bottom: 12px;
   transition: color var(--animation-duration),
     border-color var(--animation-duration);
-}
+} */
+
 table.eta-results {
   font-family: var(--font-family-text);
   width: 100%;
@@ -396,47 +398,58 @@ table.eta-results {
 }
 table.eta-results th,
 table.eta-results td {
-  padding: 12px 15px;
+  padding: 10px 12px; /* Adjusted padding slightly for more columns */
   text-align: left;
   border-bottom: 1px solid var(--outline-color);
   transition: border-color var(--animation-duration),
     background-color 0.15s;
-  white-space: normal; /* Allow wrapping for longer content like destination */
-  word-break: keep-all; /* Try to keep words together */
+  white-space: normal;
+  word-break: keep-all;
 }
 table.eta-results th {
   font-family: var(--font-family-sans);
   font-weight: 700;
   color: var(--on-surface-variant-color);
   text-transform: uppercase;
-  font-size: 0.8em;
+  font-size: 0.75em; /* Slightly smaller for more columns */
   letter-spacing: 0.8px;
   border-bottom-width: 2px;
   transition: color var(--animation-duration);
+  white-space: nowrap; /* Keep headers on one line */
 }
 /* Prevent wrapping for specific columns that should be concise */
 table.eta-results td:nth-child(1), /* Line Tag */
 table.eta-results td:nth-child(3), /* Platform */
-table.eta-results td:nth-child(4) /* ETA (mins) */ {
+table.eta-results td:nth-child(4), /* ETA 1 */
+table.eta-results td:nth-child(5), /* ETA 2 */
+table.eta-results td:nth-child(6), /* ETA 3 */
+table.eta-results td:nth-child(7)  /* ETA 4 */
+{
   white-space: nowrap;
+  text-align: center; /* Center ETA values */
 }
+table.eta-results td:nth-child(2) { /* Destination */
+    min-width: 120px; /* Give destination more space */
+}
+
+
 table.eta-results tr:last-child td {
   border-bottom: none;
 }
 table.eta-results tr:hover td {
   background-color: var(--table-row-hover);
 }
-.scheduled-eta {
+.scheduled-eta { /* Applied via JS to scheduled time text if needed */
   color: var(--on-surface-variant-color);
   font-style: italic;
   opacity: 0.8;
 }
-.remark-symbol {
+.remark-symbol { /* The asterisk symbol */
   font-weight: bold;
   margin-left: 5px;
   color: var(--primary-color);
 }
-.remark-only-row td {
+.remark-only-row td { /* For "No upcoming trains" messages if used */
   text-align: left !important;
   font-style: italic;
   color: var(--on-surface-variant-color);
@@ -444,15 +457,8 @@ table.eta-results tr:hover td {
   padding-bottom: 15px !important;
   opacity: 0.9;
 }
-.eta-separator td { /* Not currently used in JS, but kept for potential use */
-  border-top: 2px dashed var(--outline-color) !important;
-  height: 0;
-  padding: 0 !important;
-  line-height: 0;
-  transition: border-color var(--animation-duration);
-}
 
-/* MTR Line Tag Styling */
+/* MTR Line Tag Styling - Updated with Official Colors */
 span.route-tag {
   font-family: "Google Sans", Arial, sans-serif;
   display: inline-block;
@@ -461,15 +467,15 @@ span.route-tag {
   font-weight: 700;
   line-height: 1.2;
   text-align: center;
-  min-width: 50px; /* Ensure tags have a decent minimum width */
+  min-width: 50px;
   box-shadow: 0 1px 2px var(--shadow-color);
   vertical-align: middle;
   font-size: var(--route-tag-base-font-size);
   white-space: nowrap;
   transition: background-color var(--animation-duration),
     color var(--animation-duration), box-shadow var(--animation-duration);
-  background-color: var(--route-normal-bg); /* Default background */
-  color: var(--route-normal-text); /* Default text color */
+  background-color: var(--route-normal-bg);
+  color: var(--route-normal-text);
 }
 
 /* Official MTR Line Colors (approximated from image) */
@@ -484,22 +490,7 @@ span.route-tag {
 .route-tag-TML { background-color: #A05A2C; color: var(--route-white-text); } /* Tuen Ma Line - Brown */
 .route-tag-TCL { background-color: #F58220; color: var(--route-white-text); } /* Tung Chung Line - Orange */
 
-.route-tag-DEFAULT { /* Fallback if a line code is not matched */
-  background-color: var(--route-normal-bg);
-  color: var(--route-normal-text);
-}
-
-.route-tag-AEL { background-color: #0077c0; color: var(--route-white-text); }
-.route-tag-TCL { background-color: #f58220; color: var(--route-white-text); }
-.route-tag-TML { background-color: #a0522d; color: var(--route-white-text); }
-.route-tag-TKL { background-color: #7b2f90; color: var(--route-white-text); }
-.route-tag-EAL { background-color: #5091cd; color: var(--route-white-text); }
-.route-tag-SIL { background-color: #aad500; color: var(--route-normal-text); } /* Uses normal text due to light bg */
-.route-tag-TWL { background-color: #de2f24; color: var(--route-white-text); } /* MTR Red */
-.route-tag-ISL { background-color: #0052a3; color: var(--route-white-text); }
-.route-tag-KTL { background-color: #008a4e; color: var(--route-white-text); }
-.route-tag-DRL { background-color: #ff69b4; color: var(--route-white-text); }
-.route-tag-DEFAULT { /* Fallback if a line code is not matched */
+.route-tag-DEFAULT {
   background-color: var(--route-normal-bg);
   color: var(--route-normal-text);
 }
@@ -546,4 +537,40 @@ footer p {
 .loading-spinner {
   border: 4px solid var(--outline-color);
   border-top: 4px solid var(--primary-color);
-  
+  border-radius: 50%;
+  width: 30px;
+  height: 30px;
+  animation: spin 1s linear infinite;
+  margin: 20px auto;
+}
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@media (max-width: 768px) {
+  body { padding: 15px; }
+  .container { margin: 15px auto; padding: 20px 25px; }
+  .header-controls { flex-direction: column; align-items: flex-start; gap: 15px; padding-bottom: 10px; }
+  h1 { margin-bottom: 5px; font-size: 1.8em; }
+  .theme-switch-wrapper { margin-bottom: 10px; }
+  .controls { gap: 18px; margin-bottom: 30px; }
+  .controls > div { flex-basis: 100%; }
+  .controls button { width: 100%; padding: 15px; }
+  /* .grouping-control { padding-bottom: 0; } Removed as not used */
+  table.eta-results { font-size: 0.825em; } /* Adjusted for more columns */
+  table.eta-results th, table.eta-results td { padding: 8px 6px; } /* Adjusted for more columns */
+  :root { --route-tag-base-font-size: 0.8em; } /* Adjusted for smaller table cells */
+}
+@media (max-width: 480px) {
+  body { padding: 10px; }
+  .container { padding: 15px; border-radius: var(--border-radius-medium); }
+  h1 { font-size: 1.6em; }
+  .controls input[type="text"], .controls button { font-size: 0.95em; padding: 12px 15px; }
+  .eta-table-container { padding: 10px; } /* Reduced padding */
+  /* .eta-table-container h3 { font-size: 1.2em; } Removed as no h3 in container now */
+  table.eta-results { font-size: 0.75em; } /* Further adjusted */
+  table.eta-results th, table.eta-results td { padding: 6px 4px; } /* Further adjusted */
+  :root { --route-tag-base-font-size: 0.75em; } /* Further adjusted */
+  footer p { font-size: 0.8em; }
+}
